@@ -1,0 +1,89 @@
+#!/usr/bin/bash
+
+# Check if the user wants a custom music folder, in case it's
+# not set
+# -------------------------------------------------------------------
+function check_folder_defined {
+	if [[ ${music_folder} == "" ]] ; then
+		read -e -p "Where would you like to save your musics to?\
+		> " -i "${HOME}/Music" music_folder
+
+		# Appends variables to  bashrc for
+
+		echo "Appending configuration to bashrc..."
+		echo "export music_folder='${music_folder}'" >> ${HOME}/.bashrc
+		if [[ ${?} -ne 0 ]] ; then echo "An error occured appending to bashrc" ; fi
+
+		# This should source the bashrc from inside a script
+		exec bash
+	else
+		echo "Using ${music_folder} to store music"
+	fi
+}
+
+# Check if the user's phone is already saved, if not, set if for them
+# -------------------------------------------------------------------
+function check_phone_defined {
+
+	if [[ ${phone_addr} == "" ]] ; then
+		read -e -p "What is the MAC Address of your phone?\
+		> " -i "aa:bb:cc:dd:ee:ff" phone_addr
+
+		echo "Appending configuration to bashrc..."
+		echo "export phone_addr='${phone_addr}'" >> ${HOME}/.bashrc
+		if [[ ${?} -ne 0 ]] ; then echo "An error occured appending to bashrc" ; fi
+
+		# This should source the bashrc from inside a script
+		exec bash
+		#source "${HOME}/.bashrc"
+	else
+		echo "Cellphone has MAC address: ${phone_addr}"
+	fi
+}
+
+
+
+# Asks for a youtube link, downloads the audio from the video given
+# -------------------------------------------------------------------
+function download_audio {
+	read -e -p "Enter the URL of the song to download > " yt_url
+	echo "You entered ${yt_url}"
+
+	youtube-dl --no-playlist -x --audio-format=mp3 -o "${music_folder}/%(title)s.%(ext)s" ${yt_url}
+	if [[ $? -ne 0 ]] ; then  echo "Something went wrong when downloading the track." >&2; exit 1 ; fi
+}
+
+function send_to_phone {
+
+	bluetoothctl agent on >&2
+	bluetoothctl power on >&2
+
+	echo "Pairing with ${phone_addr}..."
+	bluetoothctl connect ${phone_addr} >&2
+
+	echo "Sending file located at $@..."
+	bluetooth-sendto --device=${phone_addr} "$@" >&2
+
+	echo "Disconnecting..."
+	bluetoothctl disconnect ${phone_addr}
+	bluetoothctl power off
+	bluetoothctl agent off
+}
+
+
+
+# -------------------------------------------------------------------
+# Runtime starts here
+# -------------------------------------------------------------------
+
+# On first startup, check if the environment variables are set
+check_folder_defined
+check_phone_defined
+
+# Download music from URL
+filename=$( download_audio | grep "\[ffmpeg\]" | awk -F ':' '{print $2}' | sed 's/^\ //g' )
+
+echo "${filename}"
+
+# Send music to mobile phone if asked to
+send_to_phone "${filename}"
