@@ -1,5 +1,14 @@
 #!/usr/bin/bash
 
+
+# Name: yt-music-downloader
+# Author: Matheus Augusto da Silva
+
+# This prompts the user for a youtube URL.
+# The program will then download the audio from the video on the
+# URL and send the track to the user's mobile phone by
+# bluetooth
+
 # Check if the user wants a custom music folder, in case it's
 # not set
 # -------------------------------------------------------------------
@@ -35,7 +44,6 @@ function check_phone_defined {
 
 		# This should source the bashrc from inside a script
 		exec bash
-		#source "${HOME}/.bashrc"
 	else
 		echo "Cellphone has MAC address: ${phone_addr}"
 	fi
@@ -53,6 +61,8 @@ function download_audio {
 	if [[ $? -ne 0 ]] ; then  echo "Something went wrong when downloading the track." >&2; exit 1 ; fi
 }
 
+# Sends the given file to a phone using its MAC address
+# -------------------------------------------------------------------
 function send_to_phone {
 
 	bluetoothctl agent on >&2
@@ -80,10 +90,8 @@ function send_to_phone {
 check_folder_defined
 check_phone_defined
 
-# Download music from URL
+# Prompts user for an URL, downloads the audio, returns filename
 filename=$( download_audio | grep "\[ffmpeg\]" | awk -F ':' '{print $2}' | sed 's/^\ //g' )
-
-echo "${filename}"
 
 # Send music to mobile phone if asked to
 send_to_phone "${filename}"
